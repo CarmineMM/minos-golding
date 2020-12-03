@@ -62,4 +62,18 @@ class ViewHelper extends View
     {
         return "<input type='hidden' name='_csrf' value='{$this->csrf()}' aria-hidden='true'>";
     }
+
+
+    /**
+     * Devuelve un Input de tipo hidden para operar el método
+     *
+     * @param string $method
+     * @return string
+     */
+    public function method($method = 'POST')
+    {
+        if ( is_array($method) ) $method = $method[0];
+        $method = strtoupper($method);
+        return "<input type='hidden' name='_method' value='{$method}' aria-hidden='true'>";
+    }
 }

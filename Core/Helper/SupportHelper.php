@@ -22,9 +22,10 @@ class SupportHelper
      *
      * @param $print
      * @param bool $vardump
+     * @return void
      */
     public static function showDev($print, $vardump = true) {
-        echo '<pre style="background-color: #eee; padding: 8px; color: #51172d; overflow-x: scroll">';
+        echo '<pre style="background-color: #eee; padding: 8px; color: #51172d; overflow-x: scroll; text-align: left">';
         ($vardump) ? var_dump($print) : print_r($print);
         echo '</pre>';
     }

@@ -29,6 +29,14 @@ class Model
 
 
     /**
+     * Campos que pueden ser llenados de forma masiva
+     *
+     * @var array
+     */
+    protected $allowed = [];
+
+
+    /**
      * Campos auditable
      *
      * @var string
@@ -62,13 +70,6 @@ class Model
      */
     private $query_sql = '';
 
-    /**
-     * Parámetros opcionales para el query
-     *
-     * @var array
-     */
-    private $param_to_query = [];
-
 
     /**
      * Establece cual es la columna dl Primary Key
@@ -79,12 +80,19 @@ class Model
 
 
     /**
-     * Parámetros pasador por el usuario para actualizar
+     * Parámetros pasador por el usuario para actualizar.
      *
      * @var array
      */
-    private $param_to_update = [];
+    private $parameters = [];
 
+
+    /**
+     * Parámetros forzados para introducir en la base de datos
+     *
+     * @var array
+     */
+    private $force_params = [];
 
 
     /**
@@ -109,7 +117,7 @@ class Model
         // Configura la tabla de forma automática
         if ( $this->table === '' ) {
             $table = explode('\\', get_called_class());
-            $this->table = strtolower(array_pop($table));
+            $this->table = strtolower(array_pop($table)).'s';
         }
     }
 
@@ -133,6 +141,7 @@ class Model
         $this->connection->beginTransaction();
 
         $query = $this->connection->prepare($sql);
+        $this->query_sql = ''; # Libera la sentencia ejecutada
 
         // Manejo de errores
         if ( !$query->execute($param) ) {
@@ -149,17 +158,23 @@ class Model
         {
             return $query->fetchAll(PDO::FETCH_OBJ);
         }
+
+        // INSERTs
         elseif ( strpos($sql, 'INSERT') !== false )
         {
             $id = $this->connection->lastInsertId();
             $this->connection->commit();
             return $id;
         }
+
+        // UPDATEs
         elseif ( strpos($sql, 'UPDATE') !== false )
         {
             $this->connection->commit();
             return true;
         }
+
+        // DELETEs
         elseif ( strpos($sql, 'DELETE') !== false )
         {
             if ( $query->rowCount() > 0 ) {
@@ -234,17 +249,21 @@ class Model
      * @param $sentenceOrSpecial - Sentencia a comprar o un character especial para comparación
      * @param false $sentence
      * @return Model
+     * @throws \Exception
      */
     public function where($column, $sentenceOrSpecial, $sentence = false)
     {
+        if ( $this->query_sql === '' ) $this->all();
+
         $delimit = strpos($this->query_sql, 'WHERE') === false ? 'WHERE' : 'AND';
+        $placeholder = isset($this->param_to_query[":{$column}"]) ? ":{$column}".random_int(1, 200) : ":{$column}";
 
         if ( $sentence ) {
-            $this->query_sql .= " {$delimit} {$column} {$sentenceOrSpecial} :{$column}";
-            $this->param_to_query[":{$column}"] = $sentence;
+            $this->query_sql .= " {$delimit} {$column} {$sentenceOrSpecial} $placeholder";
+            $this->parameters["$placeholder"] = $sentence;
         }else {
-            $this->query_sql .= " {$delimit} {$column} = :{$column}";
-            $this->param_to_query[":{$column}"] = $sentenceOrSpecial;
+            $this->query_sql .= " {$delimit} {$column} = $placeholder";
+            $this->parameters["$placeholder"] = $sentenceOrSpecial;
         }
 
         return $this;
@@ -256,6 +275,7 @@ class Model
      *
      * @param $id
      * @return array|mixed
+     * @throws \Exception
      */
     public function find($id)
     {
@@ -270,10 +290,10 @@ class Model
     /**
      * Crea un nuevo registro en la base de datos
      *
-     * @param $params
+     * @param array $params
      * @return $this
      */
-    public function create($params)
+    public function create($params = [])
     {
         global $gb_request;
         $params = (array)$params;
@@ -283,27 +303,38 @@ class Model
             return $this;
         }
 
-        $keys = implode(', ', array_keys($params));
-        $placeholder = '';
-        $count = 1;
+        // Llaves conforme al force de los parámetros o los pasados
+        $keys = count($this->force_params) === 0
+            ? implode(', ', $this->allowed)
+            : implode(', ', array_keys($this->force_params));
 
-        // Prepara los parámetros y los placeholder
-        foreach ($params as $key => $value) {
-            $placeholder .= $count === count($params) ? ":{$key}" : ":{$key}, ";
-            $this->param_to_query[":{$key}"] = $value;
-            $count++;
+        $placeholders = ''; # Llaves de acción
+        $count        = 1; # Conteo que ayuda a saber si es el ultimo elemento
+        $insert       = count($this->force_params) === 0 ? $this->allowed : array_keys($this->force_params);
+        $params       = count($this->force_params) === 0 ? $params : $this->force_params;
+
+
+        foreach ( $insert as $key => $param )
+        {
+            // Parámetros permitidos
+            if ( isset($params[$param]) ) {
+                $placeholders .= count($insert) === $count ? ":{$param}" : ":{$param}, ";
+                $this->parameters[":{$param}"] = $params[$param];
+                $count++;
+            }
         }
+
 
         // Habilita el uso de los timestamps
         if ( $this->useTimestamps ) {
-            $keys        .= ", {$this->created_field}, {$this->updated_field}";
-            $placeholder .= ", :{$this->created_field}, :{$this->updated_field}";
+            $keys         .= ", {$this->created_field}, {$this->updated_field}";
+            $placeholders .= ", :{$this->created_field}, :{$this->updated_field}";
 
-            $this->param_to_query[":{$this->created_field}"] = SupportHelper::now();
-            $this->param_to_query[":{$this->updated_field}"] = SupportHelper::now();
+            $this->parameters[":{$this->created_field}"] = SupportHelper::now();
+            $this->parameters[":{$this->updated_field}"] = SupportHelper::now();
         }
 
-        $this->query_sql = "INSERT INTO {$this->table} ({$keys}) VALUES ({$placeholder})";
+        $this->query_sql = "INSERT INTO {$this->table} ({$keys}) VALUES ({$placeholders})";
 
         return $this;
     }
@@ -312,32 +343,37 @@ class Model
     /**
      * Actualiza un registro especifico
      *
+     * @param $data
      * @param $idOrOther - ID del registro, o una columna en la tabla
      * @param false $optional - Parámetro a buscar de la columna especifica
      * @return $this
      */
-    public function update($idOrOther, $optional = false)
+    public function update($data, $idOrOther, $optional = false)
     {
         global $gb_request;
-        if ( count($this->param_to_update) === 0 ) {
+        if ( count($data) === 0 ) {
             $gb_request->warningApp[] = 'Imposible actualizar sin datos';
             return $this;
         }
 
-        $sets  = '';
-        $count = 1;
+        $sets      = '';
+        $count     = 1;
+        $updated_f = count($this->force_params) === 0 ? $data          : $this->force_params;
+        $allows    = count($this->force_params) === 0 ? $this->allowed : array_keys($this->force_params);
 
         // Prepara los parámetros y los placeholder
-        foreach ($this->param_to_update as $key => $item) {
-            $sets .= $count === count($this->param_to_update) ? "{$key}=:{$key}" : "{$key}=:{$key}, ";
-            $this->param_to_query[":{$key}"] = $item;
-            $count++;
+        foreach ( $allows as $allow ) {
+            if ( isset($updated_f[$allow]) ) {
+                $sets .= count($allows) === $count ? "{$allow}=:{$allow}" : "{$allow}=:{$allow}, ";
+                $this->parameters[":{$allow}"] = $updated_f[$allow];
+                $count++;
+            }
         }
 
         // Habilita el uso de los timestamps
         if ( $this->useTimestamps ) {
             $sets .= ", {$this->updated_field}=:{$this->updated_field}";
-            $this->param_to_query[":{$this->updated_field}"] = SupportHelper::now();
+            $this->parameters[":{$this->updated_field}"] = SupportHelper::now();
         }
 
         // Where
@@ -357,7 +393,20 @@ class Model
      */
     public function data(array $params)
     {
-        $this->param_to_update = $params;
+        $this->parameters = $params;
+        return $this;
+    }
+
+
+    /**
+     * Parámetros forzados para usar en las actualizaciones e inserciones
+     *
+     * @param array $force_params
+     * @return Model
+     */
+    public function forceParams(array $force_params)
+    {
+        $this->force_params = $force_params;
         return $this;
     }
 
@@ -428,6 +477,20 @@ class Model
     }
 
 
+    /**
+     * Búsqueda por LIKE
+     *
+     * @param $column
+     * @param $search
+     * @return $this
+     * @throws \Exception
+     */
+    public function like($column, $search)
+    {
+        return $this->where($column, 'LIKE', "%{$search}%");
+    }
+
+
 
     /**
      * Ejecuta la sentencia que se este preparando
@@ -441,7 +504,7 @@ class Model
         global $gb_request;
 
         try {
-            return $this->query($this->query_sql, $this->param_to_query);
+            return $this->query($this->query_sql, $this->parameters);
         }
         catch (\Exception $e) {
             $gb_request->warningApp[] = 'Error al ejecutar Query a la base de datos';
@@ -450,6 +513,27 @@ class Model
         }
 
         return false;
+    }
+
+
+    /**
+     * Traer registros paginados
+     *
+     * @param int $limit
+     */
+    public function paginate($limit = 10)
+    {
+        // TODO: Implementar funcionalidad
+    }
+
+
+    /**
+     * Cuenta los registros totales y devuelve los mismos
+     */
+    public function count()
+    {
+        // TODO: hacer un contador de registros
+
     }
 
 
@@ -485,12 +569,3 @@ class Model
         $this->useTimestamps = $useTimestamps;
     }
 }
-
-
-
-
-
-
-
-
-

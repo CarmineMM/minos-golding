@@ -57,6 +57,20 @@ class MainHelper extends Config
 
 
     /**
+     * Transforma el directorio pasado en uno compatible con sistemas UNIX
+     * También compatible con sistemas Windows
+     *
+     * @param string $directory
+     * @return string
+     */
+    public static function parseDirectory(string $directory): string
+    {
+        $self = new self();
+        return $self->parse_directory($directory);
+    }
+
+
+    /**
      * Devuelve el nombre oficial del framework
      *
      * @return string

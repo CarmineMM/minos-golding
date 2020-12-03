@@ -3,30 +3,19 @@
 namespace Core\Routing;
 
 use Core\Errors\HttpException;
+use Core\Helper\MainHelper;
+use Core\Helper\RouteHelper;
 
 class Route
 {
     use \App\Config\Namespaces;
-    use \App\Config\Route;
 
     /**
-     * URI del path de URLs
-     *
-     * @var array
-     */
-    private $uri = [];
-
-    /**
-     * Path original de la URL
+     * Obtiene las rutas registradas por el usuario
      *
      * @var mixed
      */
-    private $original_uri;
-
-    /**
-     * Contiene el Request Inicial
-     */
-    private $Request;
+    public $routes;
 
 
     /**
@@ -34,137 +23,209 @@ class Route
      */
     public function __construct()
     {
-        global $gb_request;
+        $this->routes = new $this->register_routes;
 
-        // Original URI
-        $this->original_uri = $gb_request->url['path'];
-
-        // Partición de la URL
-        $this->uri = $gb_request->url['explode'];
-
-        // Asegura el Request
-        $this->Request = new ValidationRequest( $this->original_uri );
+        // Registra las rutas y nombres
+        $this->globalAccessRoutes();
     }
 
-
     /**
-     * Valida el tipo de petición entrante
+     * Comprobación de rutas explicitas.
+     * Rutas que el usuario define de forma explicita
      *
-     * @return ValidationRequest
+     * @param $request
+     * @return bool
      */
-    public function getRequest()
+    public function explicitRoutes($request)
     {
-        return $this->Request;
-    }
+        if ( $this->routeWasFound($request) ) return false; # Verifica si una ruta fue encontrada
 
+        // Trae las rutas disponibles por el verbo de entrada
+        $route_in_verbs = $this->routes->getRoutes()[$request->method] ?? false;
 
-    /**
-     * @return array
-     */
-    public function getUri()
-    {
-        return $this->uri;
-    }
+        // Verifica si hay una ruta por el verbo de entrada
+        if ( !$route_in_verbs ) return false;
 
+        // Rutas que concuerde con la cantidad de paths y que requieran parámetros
+        $routeParams = [];
 
-    /**
-     * Devuelve el path de la url
-     * 
-     * @return String
-     */
-    public function getOriginalUri()
-    {
-        return $this->original_uri;
-    }
+        // Verifica ruta por ruta
+        foreach ( $route_in_verbs as $route ) {
+            // Ruta con la misma cantidad de explodes
+            if ( count($request->url['explode']) === count( explode('/', $route['route']) ) ){
+                $routeParams[] = $this->routeWithParameters($route, $request);
+            }
 
-
-    /**
-     * Valida la ruta si hay alguno de los métodos crud en el controlador
-     *
-     * @param $server_request
-     * @return array|int
-     */
-    public function using_CRUD_methods( $server_request )
-    {
-        // Verificar si son 3 parámetros
-        $controller = $this->controller . $this->uri[0] . $this->using_identify_controller;
-
-        // Verifica si el controlador no existe
-        if ( !class_exists( $controller ) ) return 404;
-
-        $class = new $controller;
-
-        $verifyUrlCrud = $this->verifyIsUrlCrud( $controller );
-
-        if ( method_exists( $controller, $this->uri[1] ) && $verifyUrlCrud === 'another' ){
-            $method = $this->uri[1];
-            return $class->$method( $server_request, $this->uri[2] ?? false );
-        }
-        elseif ( method_exists($controller, $verifyUrlCrud) ) {
-            $method = $verifyUrlCrud;
-            return $class->$method( $server_request, $this->uri[1] ?? false );
+            // Es una ruta directa?
+            if ( $request->url['path'] === $route['route'] ){
+                return $this->routeFind($route['action'], $request);
+            }
         }
 
-        return 404;
+        foreach ( $routeParams as $routeParam ) {
+            if ( $routeParam ) {
+                return $this->routeFind($routeParam['action'], $request, $routeParam['parameters']??false);
+            }
+        }
+        unset($routeParams);
+        return false;
     }
 
+
     /**
-     * Hace un conjunto de evaluaciones para comprobar que el URI es un Método CRUD
+     * Verifica si la ruta ya fue encontrada
      *
-     * @param $controllerRefer
-     * @return string
+     * @param $request
+     * @return bool
      */
-    private function verifyIsUrlCrud( $controllerRefer )
+    private function routeWasFound($request)
     {
-        $show   = $this->CRUD_methods['show'];
-        $store  = $this->CRUD_methods['store'];
-        $edit   = $this->CRUD_methods['edit'];
-        $update = $this->CRUD_methods['update'];
-        $delete = $this->CRUD_methods['delete'];
+        return $request->status ? true : false;
+    }
 
 
-        // Comprobar método show
-        if (
-            $this->Request->getRequestMethod() === $edit['http_verb'] &&
-            isset($this->uri[1]) && isset($this->uri[2]) &&
-            $this->uri[2] === $edit['identify'] &&
-            method_exists( $controllerRefer, $edit['class_method'] )
-        )
-            return $edit['class_method'];
+    /**
+     * Modifica el estado global del gb_request,
+     * para indicar que encontró la ruta destino
+     *
+     * @param $executor
+     * @param $request
+     * @param bool $params
+     * @return bool
+     */
+    private function routeFind($executor, $request, $params = false)
+    {
+        $executor = explode('::', $executor);
 
-        // Método Show
+        $request->status = 200;
+        $request->statusText = 'OK';
+        $request->response = [
+            'controller' => MainHelper::parseDirectory($executor[0]),
+            'method' => $executor[1]
+        ];
+
+        if ( $params && is_array($params) ) {
+            foreach ( $params as $key => $param ) {
+                $request->response['parameters'][$key] = $param;
+            }
+        }
+
+        return true;
+    }
+
+
+    /**
+     * Verifica la ruta que pueda tener parámetros
+     *
+     * @param $theRoute
+     * @param $request
+     * @return false
+     */
+    private function routeWithParameters($theRoute, $request)
+    {
+        $theRouteExplode = explode('/', $theRoute['route']);
+        $newRoute = false;
+
+
+        foreach ($theRouteExplode as $key => $path) {
+            if ( $request->url['explode'][$key] === $path ){
+                $newRoute .= $path . '/';
+            }elseif( strpos($path, ':') !== false ) {
+                $newRoute .= $request->url['explode'][$key] . '/';
+                $theRoute['parameters'][str_replace(':','',$path )] = $request->url['explode'][$key];
+            }
+        }
+
+        if ( $newRoute && trim($newRoute, '/') === $request->url['path'] )
+            return $theRoute;
+
+        return false;
+    }
+
+
+    /**
+     * Verifica las rutas implícitas
+     *
+     * @param $request
+     * @return bool
+     */
+    public function implicitRoutes($request)
+    {
+        if ( $this->routeWasFound($request) ) return false; # Verifica si una ruta fue encontrada
+
+        $controller = $this->controller . $this->routes->home_controller .$this->using_identify_controller;
+
+        // -------------------------------------------
+        // Verifica la ruta inicial
+        // -------------------------------------------
+        if( class_exists($controller)
+            && $request->url['explode'][0] === ''
+            && method_exists($controller, $this->routes->method_index)
+            && count($request->url['explode']) === 1
+        ) {
+            return $this->routeFind("{$this->routes->home_controller}::{$this->routes->method_index}", $request);
+        }
+        // -------------------------------------------
+        // Verifica ruta para el Home controller y un método
+        // -------------------------------------------
+        elseif ( class_exists($controller)
+            && count($request->url['explode']) < 3
+            && method_exists($controller, $request->url['explode'][0])
+        ) {
+            return $this->routeFind("{$this->routes->home_controller}::{$request->url['explode'][0]}", $request, [ $request->url['explode'][1]??false ]);
+        }
+
+        // Reemplaza el controlador por el de la ruta
+        $controller = $this->controller . $request->url['explode'][0] . $this->using_identify_controller;
+
+        // -------------------------------------------
+        // Verifica ruta con un controlador y método index estén definidos
+        // -------------------------------------------
+        if ( count($request->url['explode']) === 1
+            && class_exists($controller)
+            && method_exists($controller, $this->routes->method_index)
+        ){
+            return $this->routeFind("{$request->url['explode'][0]}::{$this->routes->method_index}", $request);
+        }
+        // -------------------------------------------
+        // Verifica ruta con un controlador y método index estén definidos
+        // -------------------------------------------
         elseif (
-            $this->Request->getRequestMethod() === $show['http_verb'] &&
-            isset($this->uri[1]) &&
-            method_exists( $controllerRefer, $show['class_method'] )
-        )
-            return $show['class_method'];
+            count($request->url['explode']) < 4
+            && isset($request->url['explode'][1])
+            && class_exists($controller)
+            && method_exists($controller, $request->url['explode'][1])
+        ){
+            return $this->routeFind("{$request->url['explode'][0]}::{$request->url['explode'][1]}", $request, [ $request->url['explode'][2]??false ]);
+        }
 
-        // Método Store
-        elseif (
-            $this->Request->getRequestMethod() === $store['http_verb'] &&
-            isset($this->uri[1]) &&
-            $this->uri[1] === $store['identify'] &&
-            method_exists( $controllerRefer, $store['class_method'] )
-        )
-            return $store['class_method'];
+        return false;
+    }
 
-        // Método Update
-        elseif (
-            $this->Request->getRequestMethod() === $update['http_verb'] &&
-            isset($this->uri[1]) &&
-            method_exists( $controllerRefer, $update['class_method'] )
-        )
-            return $update['class_method'];
 
-        // Método Delete
-        elseif (
-            $this->Request->getRequestMethod() === $delete['http_verb'] &&
-            isset($this->uri[1]) &&
-            method_exists( $controllerRefer, $delete['class_method'] )
-        )
-            return $delete['class_method'];
+    /**
+     * Registra el acceso global de las rutas
+     * Y los nombres de las mismas
+     */
+    private function globalAccessRoutes()
+    {
+        $registry = [];
 
-        return 'another';
+        foreach($this->routes->getRoutes() as $route_per_verb ) {
+            foreach ($route_per_verb as $route) {
+                // Rutas que si tienen nombre
+                if ( isset($route['name']) ) {
+                    $registry[$route['name']] = $route['route'];
+                }
+                // Rutas sin nombre
+                else {
+                    $registry['undefined'][] = $route['route'];
+                }
+            }
+        }
+        global $route_helper;
+        $route_helper = new RouteHelper();
+
+        $route_helper->setRoutes($registry);
     }
 }

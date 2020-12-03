@@ -2,7 +2,7 @@
 
 /**
  * Minos Golding
- * Version: 0.3
+ * Version: 0.4.0
  *
  * Version Minima de PHP: 7.2
  *

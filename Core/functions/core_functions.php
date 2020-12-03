@@ -35,26 +35,27 @@ function get_info( $type = 'app_name', $optional_param = '' ) {
  * @param $type
  * @param string $action
  * @param string $message
+ * @param bool $key
  * @return array|bool
  */
-function flasher($type, $action = 'get', $message = '')
+function flasher($type, $action = 'get', $message = '', $key = false)
 {
     $f = new \Core\Foundation\Flasher();
 
     if ( $action === 'get' )
     {
         switch ($type){
-            case 'n': return $f->getNotification();
-            case 'w': return $f->getWarning();
-            case 'e': return $f->getError();
+            case 'n': return $f->getNotification($key);
+            case 'w': return $f->getWarning($key);
+            case 'e': return $f->getError($key);
         }
     }
     elseif ( $action === 'set' )
     {
         switch ($type){
-            case 'n': return $f->setNotification($message);
-            case 'w': return $f->setWarning($message);
-            case 'e': return $f->setError($message);
+            case 'n': return $f->setNotification($message, $key);
+            case 'w': return $f->setWarning($message, $key);
+            case 'e': return $f->setError($message, $key);
         }
     }
     return false;
@@ -62,6 +63,14 @@ function flasher($type, $action = 'get', $message = '')
 
 //--------------------------------------------------------------------
 
+/**
+ * Instancia de ViewHelper
+ * Ayudantes que solo deberían ser ejecutados en las vitas
+ *
+ * @param $type
+ * @param mixed ...$optional_param
+ * @return false|mixed|string
+ */
 function viewHelper($type, ...$optional_param)
 {
     $viewHelper = new \Core\Helper\ViewHelper();
@@ -72,6 +81,8 @@ function viewHelper($type, ...$optional_param)
         case 'csrf': return $viewHelper->csrf();
 
         case 'csrf_input': return $viewHelper->csrf_input();
+
+        case 'method': return $viewHelper->method($optional_param);
     }
 
     return false;
@@ -82,11 +93,12 @@ function viewHelper($type, ...$optional_param)
 /**
  * Devuelve las notificaciones flash
  *
+ * @param bool $key
  * @return array|bool
  */
-function get_notifications()
+function get_notifications($key = false)
 {
-    return flasher('n');
+    return flasher('n', 'get', '', $key);
 }
 
 //--------------------------------------------------------------------
@@ -94,11 +106,12 @@ function get_notifications()
 /**
  * Devuelve las advertencias flash
  *
+ * @param bool $key
  * @return array|bool
  */
-function get_warnings()
+function get_warnings($key = false)
 {
-    return flasher('w');
+    return flasher('w', 'get', '', $key);
 }
 
 //--------------------------------------------------------------------
@@ -106,11 +119,12 @@ function get_warnings()
 /**
  * Devuelve los errores flash
  *
+ * @param bool $key
  * @return array|bool
  */
-function get_errors()
+function get_errors($key = false)
 {
-    return flasher('e');
+    return flasher('e', 'get', '', $key);
 }
 
 //--------------------------------------------------------------------
@@ -119,11 +133,12 @@ function get_errors()
  * Establece una notificación en los mensajes flashers
  *
  * @param $message
+ * @param bool $key
  * @return array|bool
  */
-function set_notifications($message)
+function set_notifications($message, $key = false)
 {
-    return flasher('n', 'set', $message);
+    return flasher('n', 'set', $message, $key);
 }
 
 //--------------------------------------------------------------------
@@ -132,11 +147,26 @@ function set_notifications($message)
  * Establece una advertencia en los mensajes flashers
  *
  * @param $message
+ * @param bool $key
  * @return array|bool
  */
-function set_warning($message)
+function set_warning($message, $key = false)
 {
-    return flasher('w', 'set', $message);
+    return flasher('w', 'set', $message, $key);
+}
+
+//--------------------------------------------------------------------
+
+/**
+ * Establece un error en los mensajes flashers
+ *
+ * @param $message
+ * @param bool $key
+ * @return array|bool
+ */
+function set_error($message, $key = false)
+{
+    return flasher('e', 'set', $message, $key);
 }
 
 //--------------------------------------------------------------------
@@ -184,6 +214,7 @@ function app_url( $uri = '' )
  *
  * @param $print
  * @param bool $vardump
+ * @return void
  */
 function showDev($print, $vardump = true)
 {
@@ -266,16 +297,72 @@ function view($render, $data = [])
     return $gb_view->render($render, $data);
 }
 
+
 //--------------------------------------------------------------------
 
 /**
  * Instancia de RouteHelper
  *
- * @return \Core\Helper\RouteHelper
+ * @return array Colección de rutas
  */
-function RouteHelper()
+function get_routes()
 {
-    return new \Core\Helper\RouteHelper();
+    global $route_helper;
+    return $route_helper->getRoutes();
+}
+
+//--------------------------------------------------------------------
+
+/**
+ * Trae una ruta según sea su nombre
+ *
+ * @param $route
+ * @param mixed ...$params
+ * @return string
+ */
+function route(string $route, ...$params)
+{
+    global $route_helper;
+    return $route_helper->getRoute($route, $params);
+}
+
+//--------------------------------------------------------------------
+
+/**
+ * Devuelve la URL actual
+ *
+ * @return string
+ */
+function current_uri()
+{
+    global $route_helper;
+    return $route_helper->current_uri();
+}
+
+//--------------------------------------------------------------------
+
+/**
+ * Path de la URL actual
+ *
+ * @return string
+ */
+function current_path()
+{
+    global $route_helper;
+    return $route_helper->current_path();
+}
+
+//--------------------------------------------------------------------
+
+/**
+ * Trae un input hidden para poner un método
+ *
+ * @param string $method
+ * @return string
+ */
+function method($method = 'POST')
+{
+    return viewHelper('method', $method);
 }
 
 //--------------------------------------------------------------------
@@ -289,7 +376,23 @@ function RouteHelper()
  */
 function redirect($to, $status = 302)
 {
-    return RouteHelper()->redirect($to, $status);
+    global $route_helper;
+    return $route_helper->redirect($to, $status);
+}
+
+//--------------------------------------------------------------------
+
+/**
+ * Go back
+ *
+ * @param int $status
+ * @param bool $optional
+ * @return mixed
+ */
+function back($status = 308, $optional = false)
+{
+    global $route_helper;
+    return $route_helper->back($status, $optional);
 }
 
 //--------------------------------------------------------------------
@@ -360,6 +463,7 @@ function fast_all($table, $softDeletes = false)
  * @param $table
  * @param $id
  * @return array|mixed
+ * @throws Exception
  */
 function fast_find($table, $id)
 {

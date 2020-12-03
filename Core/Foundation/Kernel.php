@@ -22,7 +22,7 @@ class Kernel extends Config
     /**
      * Version Oficial del Framework
      */
-    const frameworkVersion = '0.3';
+    const frameworkVersion = '0.4.0';
 
 
     /**
@@ -37,7 +37,7 @@ class Kernel extends Config
      *
      * @var string
      */
-    private $file_functions = 'Core\functions\core_functions.php';
+    private $file_functions = 'Core/functions/core_functions.php';
 
     /**
      * Revisa el tiempo de ejecución de la App

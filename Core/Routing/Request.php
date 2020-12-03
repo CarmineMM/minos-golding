@@ -11,6 +11,7 @@ class Request
      */
     public $get;
     public $post;
+    public $files;
 
 
     /**
@@ -35,8 +36,8 @@ class Request
      * Respuestas de estado
      * En código, y texto
      */
-    public $status = 200;
-    public $statusText = 'OK';
+    public $status = false;
+    public $statusText = false;
 
 
     /**
@@ -53,14 +54,6 @@ class Request
      * @var string
      */
     public $phpVersion;
-
-
-    /**
-     * Path hacia la carpeta publica
-     *
-     * @var string
-     */
-//    public $publicPath;
 
 
     /**
@@ -88,8 +81,9 @@ class Request
         $helper = new MainHelper();
 
         // Variables de GET y POST
-        $this->get  = (object)$_GET;
-        $this->post = (object)$_POST;
+        $this->get   = (object)$_GET;
+        $this->post  = (object)$_POST;
+        $this->files = (object)$_FILES;
 
         // Path original
         $path    = trim($_SERVER['REQUEST_URI'], '/');
@@ -116,15 +110,12 @@ class Request
         ];
 
         // Método entrante a la app
-        $this->method =  $_SERVER['REQUEST_METHOD'];
+        $this->method = strtoupper($_SERVER['REQUEST_METHOD']);
 
         // Verifica si es Ajax
         $this->ajax = ValidationRequest::isAjax();
 
         // Version actual de PHP del servidor
         $this->phpVersion = phpversion();
-
-        // Path hacia la carpeta publica
-//        $this->publicPath = PUBLIC_PATH; // No mandar el path publico
     }
 }

@@ -36,6 +36,19 @@ trait FileSystem
 
     /*
     |--------------------------------------------------------------------------
+    | Carpeta para los archivos
+    |--------------------------------------------------------------------------
+    |
+    | Define la carpeta a donde se enviaran los archivos que se suban al servidor
+    | Se debe contar con el permiso necesario para subir archivos
+    | Esta carpeta es de preferencia publica al servidor
+    |
+    */
+    protected $folder_uploads = 'public/uploads';
+
+
+    /*
+    |--------------------------------------------------------------------------
     | Path Custom Functions - Functions
     |--------------------------------------------------------------------------
     |

@@ -18,32 +18,6 @@ trait Namespaces
     */
     protected $controller = '\App\Controllers\\';
 
-    
-    /*
-    |--------------------------------------------------------------------------
-    | Controlador inicial
-    |--------------------------------------------------------------------------
-    |
-    | Define el controlador inicial, este debe existir
-    | Se usara para la llamada de la ruta raíz
-    | No es necesario especificarle el namespace ni el identificador
-    |
-    */
-    protected $home_controller = 'Home';
-
-        
-    /*
-    |--------------------------------------------------------------------------
-    | Método Inicial
-    |--------------------------------------------------------------------------
-    |
-    | Define el método que se manda a llamar de forma predeterminada
-    | Este método se usa cuando por defecto en cualquier controlador
-    | Es la base de instancia para el render de la app
-    |
-    */
-    protected $init_method = 'index';
-
 
     /*
     |--------------------------------------------------------------------------
@@ -56,4 +30,30 @@ trait Namespaces
     |
     */
     protected $using_identify_controller = 'Controller';
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Namespace del registrador de rutas
+    |--------------------------------------------------------------------------
+    |
+    | Contiene la declaración de todas las rutas.
+    | Implícitas: Las que se buscan de forma dinámica en los controladores
+    | Explicitas: Son las que define el usuario
+    |
+    */
+    protected $register_routes = '\App\Routes\Web';
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Controlador de las authentication's
+    |--------------------------------------------------------------------------
+    |
+    | Controlador que se encantará del registro, login y cosas del usuario
+    | El controlador esta enlazado al namespace de los controladores
+    | También esta enlazado al identificador de controladores
+    |
+    */
+    protected $auth_controller = 'Admin\Auth';
 }

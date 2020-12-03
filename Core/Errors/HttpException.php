@@ -17,7 +17,7 @@ class HttpException extends MainHelper
      *
      * @var string
      */
-    private $views_internal_http_errors = 'Core\InternalViews\http_exceptions.php';
+    private $views_internal_http_errors = 'Core/InternalViews/http_exceptions.php';
 
 
     /**
@@ -31,7 +31,8 @@ class HttpException extends MainHelper
         $view = '';
         if ( isset($this->error_views[$type_error]) )
             $view = G_PATH . $this->parse_directory($this->views) . DG . $this->parse_directory($this->error_views[$type_error]);
-        return is_file($view) ? $view : G_PATH.$this->views_internal_http_errors;
+
+        return is_file($view) ? $view : G_PATH . $this->views_internal_http_errors;
     }
 
 
@@ -82,7 +83,11 @@ class HttpException extends MainHelper
     }
 
 
-    // TODO: Hacer un error para los CSRF
+    /**
+     * Petición rechazada, regularmente por falla en el CSRF
+     *
+     * @return mixed
+     */
     public static function not_acceptable_406()
     {
         $self = new self();
@@ -113,7 +118,7 @@ class HttpException extends MainHelper
 
         $self = new self();
 
-        header($header);
+        // header($header);
         http_response_code($type);
         $gb_request->response = $self->view_to_render( $type );
 

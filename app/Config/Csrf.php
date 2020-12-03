@@ -45,16 +45,29 @@ trait Csrf
 
 
     /*
-     |--------------------------------------------------------------------------
-     | Métodos HTTP
-     |--------------------------------------------------------------------------
-     |
-     | Estos son los métodos http que requieren validaciones
-     | Los que no están mencionados no serán validados con un CSRF
-     | Si no se define ninguno, no se validara ningún método
-     |
-     */
+    |--------------------------------------------------------------------------
+    | Métodos HTTP
+    |--------------------------------------------------------------------------
+    |
+    | Estos son los métodos http que requieren validaciones
+    | Los que no están mencionados no serán validados con un CSRF
+    | Si no se define ninguno, no se validara ningún método
+    |
+    */
     protected $methods_to_verify = [
         'POST', 'PATCH', 'PUT', 'DELETE'
     ];
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Abrir Control de acceso CORS
+    |--------------------------------------------------------------------------
+    |
+    | Identifica las rutas a las cuales se abren las puertas de acceso
+    | Valida las entradas de peticiones a dichas rutas desde accesos desconocidos
+    | Recomendable para APIs y peticiones AJAX
+    |
+    */
+    public $open_CORS = false;
 }

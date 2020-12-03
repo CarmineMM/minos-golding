@@ -13,147 +13,136 @@ class Application extends Kernel
     use \App\Config\Namespaces;
 
     /**
-     * Lo que va a rendering
-     * por defecto sera un 404
-     */
-    private $dispatcher = 404;
-
-    /**
-     * Request del servidor
-     *
-     * @var Request
-     */
-    private $server_request;
-
-    /**
      * Inicia la aplicación
      */
     public function run()
     {
-        // Carga el controlador estimado
-        $current_controller = $this->loadController();
+        global $gb_request;
+        $route      = new Route();
+        $validation = new ValidationRequest($gb_request);
 
-        // Realiza Dispatcher
-        $this->dispatcher( $current_controller );
+        // Fuerza un verbo HTTP, que indique el usuario
+        $validation->forceMethod($gb_request);
+
+        // Valida los CSRF
+        $validation->csrf($gb_request);
+
+        // Comprobación de rutas definidas
+        $route->explicitRoutes($gb_request);
+
+        // Comprueba las rutas implícitas (Aquellas que van directamente a los controladores)
+        $route->implicitRoutes($gb_request);
+
+        // Carga el controlador llamado
+        try {
+            $this->loadController($gb_request);
+        }
+        catch (\Exception $e) {
+            HttpException::internal_server_error_500();
+        }
+
+        $this->dispatcher($gb_request);
     }
+
 
     /**
      * Carga el controlador según sea el caso
+     *
+     * @param $request
+     * @return array|Request
      */
-    private function loadController()
+    private function loadController($request)
     {
-        global $gb_request;
-
-        $route = new Route();
-
-        // Valida el método de entrada de la petición
-        if( $gb_request->status === 405 ) {
-            return $route->getRequest()->getValidateMethod();
+        // Ruta no pudo ser encontrada
+        if ( $request->status === false ) {
+            return HttpException::not_found_404();
         }
+        elseif ( $request->status === 200 ){
+            $controller = $this->controller.ucfirst($request->response['controller']).$this->using_identify_controller;
+            $method = $request->response['method'];
 
-        // Controlador inicial, este seria el HomeController
-        $controller_home = $this->controller . $this->home_controller . $this->using_identify_controller;
-        $class_home      = new $controller_home;
+            if ( !method_exists($controller, $method) ) return HttpException::not_found_404();
 
-        // Comprobar que sea la ruta raíz
-        if ($route->getOriginalUri() === ''
-            && class_exists($controller_home)
-            && method_exists($controller_home, $this->init_method)
-        ) {
-            $method = $this->init_method;
-            $this->dispatcher = $class_home->$method($gb_request);
-        }
-        // Comprueba un único parámetro en la ruta
-        else {
-            // Controlador que concuerde con la petición
-            $controller = $this->controller . $route->getUri()[0] . $this->using_identify_controller;
+            $sendParams = false;
 
-            // Verifica si existe una clase con el primer parámetro del uri
-            if ( class_exists($controller) ) {
-                $class = new $controller;
-
-                // Si solo existe un parámetro en la uri, llama al método index de dicho controlador
-                if (count($route->getUri()) === 1) {
-                    $method = $this->init_method;
-                    $this->dispatcher = $class->$method($this->server_request);
+            // Comprobación de parámetros
+            if ( isset($request->response['parameters']) )
+            {
+                if ( count($request->response['parameters']) === 1 ){
+                    $sendParams = array_pop($request->response['parameters']);
                 }
-                // Verificar si el usuario esta intentando hacer un CRUD
                 else {
-                    $this->dispatcher = $route->using_CRUD_methods( $gb_request );
+                    $sendParams = $request->response['parameters'];
                 }
             }
-            // Comprueba si se esta llamando un método del controlador raíz
-            elseif (
-                class_exists($controller_home) &&
-                method_exists( $controller_home, $route->getUri()[0] ) &&
-                count($route->getUri()) <= 2
-            ){
-                $method = $route->getUri()[0];
-                $this->dispatcher = $class_home->$method($gb_request, $route->getUri()[1] ?? true);
+
+            // Instantiations
+            $instance = new $controller;
+            $executor = $instance->$method($request, $sendParams);
+
+            // Comprobación final de que marche bien
+            if ( $request->status === 200 ){
+                // Valida que el usuario este devolviendo el Request
+                if ( $executor === $request ){
+                    $request->response = null;
+                    return $request;
+                }
+                // Cualquier otra cosa devuelta es agregada al response
+                return $request->response = $executor;
             }
         }
-
-        // Detener la ejecución al llamar al error 404
-        if ($this->dispatcher === 404){
-            return $this->dispatcher = HttpException::not_found_404();
-        }
-
-        // Errores internos
-        if( $gb_request->status === 500 ) {
-            $this->dispatcher = HttpException::internal_server_error_500();
-        }
-
-        if ( isset($gb_request->status) && $gb_request->status === 200  ){
-            header("HTTP/1.5 200 OK");
-            http_response_code(200);
-        }
-
-        return $this->dispatcher;
+        return $request;
     }
 
     /**
      * Realiza el Dispatcher de la aplicación
      *
-     * @param $render
-     * @return bool
+     * @param $request
+     * @return void
      */
-    private function dispatcher( $render )
+    private function dispatcher( $request )
     {
-        global $gb_view;
-        global $gb_request;
 
-        // Rendering para ajax los objetos y los arrays
-        if( ValidationRequest::isAjax() ) {
-            if ( $gb_request->status === 200 && !isset($render->status) ) $gb_request->response = $render;
-            echo json_encode( $gb_request );
+        // -------------------------------------------
+        // Verificación de Ajax
+        // -------------------------------------------
+        if ( ValidationRequest::isAjax() ) {
+            echo json_encode($request);
         }
+        // -------------------------------------------
+        // Verifica la ruta 200
+        // -------------------------------------------
+        elseif ( $request->status === 200 )
+        {
+            if ( is_array($request->response) || is_object($request->response) )
+                showDev($request->response);
 
-        // Dispatcher para re-direccionamiento
-        elseif ( isset($render->status) && ($render->status === 302 || $render->status === 308) ) {
-            http_response_code($render->status);
-            header("Location: ".$render->response, true, $render->status);
+            elseif( is_string($request->response) || is_bool($request->response) || is_numeric($request->response) )
+                echo $request->response;
 
-            $force_redirect = "<script type='text/javascript'>window.location.href = '". $render->response ."'</script>";
-            $force_redirect .= "<noscript><meta http-equiv='refresh' content='0;url=\"". $render->response ."\"' /></noscript>";
-            echo $force_redirect;
+            else showDev($request);
         }
-
-        // Rendering a un error HTTP
-        elseif ( $gb_request->status !== 200 ) {
-            $status     = $gb_request->status;
-            $statusText = $gb_request->statusText;
-            echo $gb_view->internalRender($gb_request->response, compact('status', 'statusText'));
+        // -------------------------------------------
+        // Errores en el HTTP - 404, 405, 406, 500...
+        // -------------------------------------------
+        elseif( $request->status !== 302 && $request->status !== 308 ) {
+            global $gb_view;
+            $status     = $request->status;
+            $statusText = $request->statusText;
+            echo $gb_view->internalRender($request->response, compact('status', 'statusText'));
         }
+        // -------------------------------------------
+        // Rutas de redirections registradas
+        // -------------------------------------------
+        elseif ($request->status === 302 || $request->status === 308) {
+            http_response_code($request->status);
+            if ( isset($request->response['redirect']) && $request->response['redirect'] !== false ) {
+                header("Location: ".$request->response['redirect']);
+            }
 
-        // Rendering Strings, Booleanos, Números
-        elseif ( is_string($render) || is_bool($render) || is_numeric($render) ) echo $render;
-
-        // Rendering Arrays
-        elseif ( is_array($render) || is_object($render) ) showDev($render);
-
-        // Liberar memoria
-        unset($render);
-        return true;
+            echo isset($request->response['helpScript'])   ? $request->response['helpScript']   : '';
+            echo isset($request->response['helpScript_2']) ? $request->response['helpScript_2'] : '';
+        }
     }
 
     /**

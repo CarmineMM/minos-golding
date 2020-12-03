@@ -35,11 +35,11 @@ class View extends MainHelper
     /**
      * Rendering una vista
      *
-     * @param $view
-     * @param array $data
-     * @return string
+     * @param string $view - Nombre del archivo a buscar
+     * @param array $data  - Información pasada a la vista
+     * @return string      Devuelve el contenido de la vista en un String
      */
-    public function render($view, $data = [])
+    public function render(string $view, $data = [])
     {
         return $this->actionRendering($view, $data);
     }
@@ -70,7 +70,6 @@ class View extends MainHelper
     {
         $file = '';
 
-
         // Convierte el directorio
         $view = $this->parse_directory($view);
 
@@ -81,10 +80,8 @@ class View extends MainHelper
         }
         $this->params = $data; // Asigna los parameters pasados, para re-usarlos en los includes
 
-        if ( $type === 'user' )
-            $file = G_PATH . $this->parse_directory($this->views) . DG . $view . $this->view_file_type;
-        elseif ( $type === 'internal' )
-            $file = $this->parse_directory($view);
+        // Archivo a rendering
+        $file = $type === 'user' ? G_PATH . $this->parse_directory($this->views) . DG . $view . $this->view_file_type : $view;
 
         // Error si no existe el archivo
         if ( !is_file($file) ) {

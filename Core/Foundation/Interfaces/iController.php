@@ -12,6 +12,14 @@ use Core\Routing\Request;
  */
 interface iController
 {
+
+    /**
+     * Ruta principal del controlador
+     *
+     * @return mixed
+     */
+    public function index();
+
     /**
      * Mostrar un registro especifico
      *

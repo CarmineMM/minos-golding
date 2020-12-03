@@ -115,7 +115,8 @@ class Csrf
         }
 
         // Tiempo de vida del token
-        if ( $this->getTokenExpiration() > time() ) {
+        if ( $this->getTokenExpiration() < time() ) {
+            unset($_SESSION['csrf_token']);
             return false;
         }
 
