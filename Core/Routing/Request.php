@@ -86,27 +86,20 @@ class Request
         $this->files = (object)$_FILES;
 
         // Path original
-        $path    = trim($_SERVER['REQUEST_URI'], '/');
-
+        $path = trim($_SERVER['REQUEST_URI'], '/');
+        
         if ( strpos($path, '?') !== false )
         {
-            $path = trim(
-                $path,
-                substr(
-                    $path,
-                    strpos($path,
-                        '?'
-                    ),
-                    strlen($path)
-                )
-            );
+            $substr = substr($path, strpos($path,'?'), strlen($path));
+            $path = str_replace($substr, '', $path);
         }
 
         // Url entrante
         $this->url = [
             'full'    => $helper->getUrl( trim($_SERVER['REQUEST_URI'], '/') ),
             'path'    => $path,
-            'explode' => explode('/', $path )
+            'explode' => explode('/', $path ),
+            'current' => $helper->getUrl() . $path
         ];
 
         // Método entrante a la app

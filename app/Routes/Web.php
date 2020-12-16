@@ -37,13 +37,17 @@ class Web extends \Core\Routing\Routing
      */
     public function __construct()
     {
-        $this->get('/', 'Home::index');
-        $this->auth();
+        // $this->get('/', 'Home::index', 'index');
+        $this->get('test', 'Home::index');
+        $this->post('test', 'Home::index');
+        $this->put('test', 'Home::index');
+        $this->get('una-ruta-loca', 'Home::index', 'index.loca');
+        // $this->auth();
     }
 
 
     /**
-     * Rutas para el autenticación
+     * Rutas para el Auth
      */
     public function auth()
     {

@@ -23,7 +23,11 @@ class ValidationRequest
         if ( ValidationRequest::isAjax() ) {
             $_POST = json_decode( file_get_contents("php://input"), true );
             header("Access-Control-Allow-Methods: PUT, PATCH, DELETE, POST, GET");
-            header("Access-Control-Allow-Headers: Content-Type");
+            
+            if ( isset($_SERVER['HTTP_CONTENT_TYPE']) ) {
+                header("Access-Control-Allow-Headers: ".$_SERVER['CONTENT_TYPE']);   
+            }
+            else header("Access-Control-Allow-Headers: Content-Type");
 
             if ( $this->open_CORS )
                 header("Access-Control-Allow-Origin: *");
@@ -78,7 +82,7 @@ class ValidationRequest
     public static function isAjax(): bool
     {
         return false;
-        // TODO: mejora esta vaina ya!!
-        return isset($_SERVER['HTTP_REFERER']);
+        return ( isset($_SERVER['HTTP_REFERER']) && isset($_SERVER['REQUEST_TIME']) ) 
+            || ( isset($_SERVER['HTTP_CONTENT_TYPE']) && isset($_SERVER['HTTP_CONTENT_LENGTH']) );
     }
 }

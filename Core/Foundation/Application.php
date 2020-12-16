@@ -102,6 +102,9 @@ class Application extends Kernel
      */
     private function dispatcher( $request )
     {
+        global $gb_view;
+        $status     = $request->status;
+        $statusText = $request->statusText;
 
         // -------------------------------------------
         // Verificación de Ajax
@@ -126,10 +129,8 @@ class Application extends Kernel
         // Errores en el HTTP - 404, 405, 406, 500...
         // -------------------------------------------
         elseif( $request->status !== 302 && $request->status !== 308 ) {
-            global $gb_view;
-            $status     = $request->status;
-            $statusText = $request->statusText;
-            echo $gb_view->internalRender($request->response, compact('status', 'statusText'));
+            $echo = $gb_view->internalRender($request->response, compact('status', 'statusText'));
+            if ( $request->status !== 500 )  echo $echo;
         }
         // -------------------------------------------
         // Rutas de redirections registradas
@@ -143,6 +144,16 @@ class Application extends Kernel
             echo isset($request->response['helpScript'])   ? $request->response['helpScript']   : '';
             echo isset($request->response['helpScript_2']) ? $request->response['helpScript_2'] : '';
         }
+
+
+        // -------------------------------------------
+        // Si cualquier cosa sale, mal: 500
+        // -------------------------------------------
+        if( $request->status === 500 )  {
+            echo $gb_view->internalRender($request->response, compact('status', 'statusText'));
+        }
+
+        return '';
     }
 
     /**
@@ -151,6 +162,7 @@ class Application extends Kernel
     public function __destruct()
     {
         global $gb_request;
+        global $route_helper;
         $warning_app = new WarningApp();
 
         // Destruye cualquier mensaje Flasher al final de la ejecución de la aplicación
@@ -169,5 +181,6 @@ class Application extends Kernel
         unset($this->dispatcher);
         unset($gb_view);
         unset($gb_request);
+        unset($route_helper);
     }
 }

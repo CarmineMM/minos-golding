@@ -235,7 +235,7 @@ class Auth
                 $this->flashers->setWarning('La contraseña debe tener al menos 1 numero', 'level_password');
 
             if ( $this->level_security_password >= 4 )
-                $this->flashers->setWarning('La contraseña debe tener al menos 1 caracter especial: !@#$%^&*()\-_=+{};:,<.>', 'level_password');
+                $this->flashers->setWarning('La contraseña debe tener al menos 1 carácter especial: !@#$%^&*()\-_=+{};:,<.>', 'level_password');
 
             $error = true;
         }
@@ -258,15 +258,14 @@ class Auth
         // Validaciones de email y de contraseñas pasadas
         $user = new $this->model;
 
+        // Validar que ya exista el email registrado
+       if( !$user->where($this->column_email, $email)->first() ) {
+           $this->flashers->setWarning('Ya existe un usuario con el email: '.$request->post->$email, 'incomplete');
+           return $this->routeHelper->redirect( $this->route_register );
+       }
+
         // Hash la contraseña
         $request->post->$pass = password_hash($request->post->$pass, PASSWORD_DEFAULT);
-
-        // TODO: hacer un contador de registros
-        // Validar que ya exista el email registrado
-//        if( count($user->all()->where($this->column_email, $request->post->$email)->exec()) !== 0 ) {
-//            $this->flashers->setWarning('Ya existe un usuario con el email: '.$request->post->$email, 'incomplete');
-//            return $this->routeHelper->redirect( $this->route_register );
-//        }
 
         // Error durante el guardado
         if ( $user->create($request->post)->exec() === false ) {

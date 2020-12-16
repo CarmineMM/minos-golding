@@ -42,7 +42,7 @@ trait App
     |
     */
     protected $url = 'http://localhost';
-    protected $port = '8080';
+    protected $port = '8000';
 
 
     /*

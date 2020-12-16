@@ -52,7 +52,7 @@ class MainHelper extends Config
      */
     public function parse_directory( string $directory ): string
     {
-        return str_replace('/', DG, trim($directory, '/'));
+        return str_replace('/', DG, rtrim($directory, '/'));
     }
 
 

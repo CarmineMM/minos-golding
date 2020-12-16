@@ -8,7 +8,7 @@ use Core\Foundation\Model;
 class User extends Model
 {
     /**
-     * Unicos campos para el llenado de información
+     * Únicos campos para el llenado de información
      *
      * @var string[]
      */
@@ -16,5 +16,11 @@ class User extends Model
         'email', 'password'
     ];
 
+    // protected $visible = [
+    //     'email'
+    // ];
+
     protected $useTimestamps = true;
+
+    // protected $useSoftDeletes = true;
 }

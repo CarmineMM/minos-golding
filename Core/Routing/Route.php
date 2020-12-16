@@ -2,7 +2,6 @@
 
 namespace Core\Routing;
 
-use Core\Errors\HttpException;
 use Core\Helper\MainHelper;
 use Core\Helper\RouteHelper;
 
@@ -210,22 +209,25 @@ class Route
     private function globalAccessRoutes()
     {
         $registry = [];
+        global $route_helper;
+        $route_helper = new RouteHelper();
+        $count = 0;
 
         foreach($this->routes->getRoutes() as $route_per_verb ) {
             foreach ($route_per_verb as $route) {
                 // Rutas que si tienen nombre
                 if ( isset($route['name']) ) {
-                    $registry[$route['name']] = $route['route'];
+                    $registry[$count]['name'] = $route['name'];
                 }
-                // Rutas sin nombre
-                else {
-                    $registry['undefined'][] = $route['route'];
-                }
+
+                $registry[$count]['action'] = $route['action'];
+                $registry[$count]['route']  = $route_helper->current_uri().strtolower($route['route']);
+                
+                $count++;
             }
         }
-        global $route_helper;
-        $route_helper = new RouteHelper();
-
+        
+        unset($count);
         $route_helper->setRoutes($registry);
     }
 }

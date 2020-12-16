@@ -118,7 +118,7 @@ class HttpException extends MainHelper
 
         $self = new self();
 
-        // header($header);
+        header($header);
         http_response_code($type);
         $gb_request->response = $self->view_to_render( $type );
 

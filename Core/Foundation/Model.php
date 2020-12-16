@@ -4,16 +4,18 @@
 namespace Core\Foundation;
 
 
-use App\Config\Database;
-use Core\Helper\SupportHelper;
 use PDO;
+use Exception;
+use App\Config\Database;
+use Core\Errors\HttpException;
+use Core\Helper\SupportHelper;
 
 class Model
 {
     use Database;
 
     /**
-     * Connexion a la base de datos
+     * Conexión a la base de datos
      *
      * @var mixed
      */
@@ -94,7 +96,6 @@ class Model
      */
     private $force_params = [];
 
-
     /**
      * Model constructor.
      */
@@ -128,6 +129,7 @@ class Model
      *
      * @param $sql
      * @param array $param
+     * @param bool $count
      * @return array|bool|string
      */
     public function query($sql, $param = [])
@@ -155,8 +157,10 @@ class Model
 
         // Detectar el tipo de sentencia SQL
         if ( strpos($sql, 'SELECT') !== false )
-        {
-            return $query->fetchAll(PDO::FETCH_OBJ);
+        {  
+            $data = $query->fetchAll(PDO::FETCH_OBJ);
+            $this->connection->commit();
+            return $data;
         }
 
         // INSERTs
@@ -202,9 +206,9 @@ class Model
      */
     public function all($softDeletes = false)
     {
-        $this->visible = implode(', ', $this->visible);
+        $visible = implode(', ', $this->visible);
 
-        $this->query_sql = "SELECT {$this->visible} FROM {$this->table}";
+        $this->query_sql = "SELECT {$visible} FROM {$this->table}";
 
         // Traer los eliminados lógicamente
         if ( $this->useSoftDeletes && !$softDeletes ) {
@@ -255,7 +259,7 @@ class Model
     {
         if ( $this->query_sql === '' ) $this->all();
 
-        $delimit = strpos($this->query_sql, 'WHERE') === false ? 'WHERE' : 'AND';
+        $delimit     = strpos($this->query_sql, 'WHERE') === false ? 'WHERE' : 'AND';
         $placeholder = isset($this->param_to_query[":{$column}"]) ? ":{$column}".random_int(1, 200) : ":{$column}";
 
         if ( $sentence ) {
@@ -309,7 +313,7 @@ class Model
             : implode(', ', array_keys($this->force_params));
 
         $placeholders = ''; # Llaves de acción
-        $count        = 1; # Conteo que ayuda a saber si es el ultimo elemento
+        $count        = 1;  # Conteo que ayuda a saber si es el ultimo elemento
         $insert       = count($this->force_params) === 0 ? $this->allowed : array_keys($this->force_params);
         $params       = count($this->force_params) === 0 ? $params : $this->force_params;
 
@@ -467,12 +471,13 @@ class Model
     /**
      * Limita una consulta
      *
-     * @param int $limit
+     * @param int $limitOrOffset
      * @return $this
      */
-    public function limit($limit = 10)
+    public function limit(int $limitOrOffset = 10, int $count = 0)
     {
-        $this->query_sql .= " LIMIT {$limit}";
+        $sentence = $count === 0 ? $limitOrOffset : "{$limitOrOffset}, {$count}";
+        $this->query_sql .= " LIMIT {$sentence}";
         return $this;
     }
 
@@ -494,7 +499,10 @@ class Model
 
     /**
      * Ejecuta la sentencia que se este preparando
+     * Se puede establecer si se desea contar los registros devueltos.
+     * Si se establece un true devolverá una estructura con el conteo y con los datos.
      *
+     * @param bool $count
      * @return array|bool|string
      */
     public function exec()
@@ -517,23 +525,106 @@ class Model
 
 
     /**
-     * Traer registros paginados
+     * Traer registros paginados. 
+     * Establece si se deben traer registros eliminados
      *
      * @param int $limit
+     * @param bool $softDeletes
      */
-    public function paginate($limit = 10)
+    public function paginate(int $limit = 10, bool $softDeletes = false)
     {
-        // TODO: Implementar funcionalidad
+        global $gb_request;
+
+        $page = isset($gb_request->get->page) ? (int) $gb_request->get->page : 1;
+
+        // Donde iniciaran los registros
+        $start = $page > 1 ? ($page * $limit) - $limit : 0;
+        
+        // Consulta
+        $data = $this->all($softDeletes)->limit($start, $limit)->exec();
+
+        // Si no hay registros, mandar un 404
+        if ( count($data) === 0 ) return HttpException::not_found_404();
+
+        // Cantidad total de registros en la base de datos
+        $total_records = $this->count($softDeletes);
+
+        // Conteo total de paginas
+        $count_pages = (int) ceil($total_records / $limit);
+
+        $links  = [];
+        $previous = '';
+        // Construcción de los Links
+        for ($i = 1; $i <= $count_pages ; $i++) { 
+            $url = $gb_request->url['current'] . "?page={$i}";
+
+            // Agrega el path de variables a la url de las paginas
+            foreach ($gb_request->get as $key => $value) {
+                if ( $key !== 'page' ) {
+                    $url .= "&{$key}={$value}";
+                }
+            }
+
+            $links[] = [
+                'link'    => $url,
+                'current' => $i === $page
+            ];
+        }
+
+        // Pagina siguiente
+        $next = $page + 1 <= $count_pages 
+            ? str_replace("page={$count_pages}", "page=".($page+1), $url) 
+            : '';
+
+        // Pagina anterior
+        $previous = $page !== 1
+            ? str_replace("page={$count_pages}", "page=".($page-1), $url) 
+            : '';
+
+        return [
+            'data'     => $data,
+            'paginate' => (object) [
+                'count_records'=> $total_records,
+                'count_pages'  => $count_pages,
+                'links'        => $links,
+                'first'        => $links[0]['link'],
+                'last'         => $links[count($links)-1]['link'],
+                'next'         => $next,
+                'previous'     => $previous,
+                'current'      => $page
+            ]
+        ];
     }
 
 
     /**
-     * Cuenta los registros totales y devuelve los mismos
+     * Cuenta la cantidad de registros.
+     * No requiere ser ejecutado con 'exec'.
+     *
+     * @param boolean $softDeletes
+     * @return Model
      */
-    public function count()
+    public function count($columnCount = false, bool $softDeletes = false)
     {
-        // TODO: hacer un contador de registros
+        $this->all($softDeletes);
+        $columnCount = $columnCount ? $columnCount : $this->column_id;
+        $this->query_sql = str_replace($this->visible, "count({$columnCount}) AS count", $this->query_sql);
+        return $this->exec()[0]->count;
+    }
 
+
+    /**
+     * Devuelve los datos, mas el conteo de datos totales en la base de datos.
+     *
+     * @param boolean $softDeletes
+     * @return Model
+     */
+    public function countWithData(bool $softDeletes = false)
+    {
+        return (object)[
+            'count' => $this->count(false, $softDeletes),
+            'data'  => $this->all($softDeletes)->exec()
+        ];
     }
 
 
@@ -541,10 +632,12 @@ class Model
      * Establece la tabla por fuera del Modelo
      *
      * @param string $table
+     * @return $this
      */
     public function setTable(string $table)
     {
         $this->table = $table;
+        return $this;
     }
 
 
@@ -552,10 +645,12 @@ class Model
      * Establece el uso de la eliminación logical por fuera del modelo
      *
      * @param bool $useSoftDeletes
+     * @return $this
      */
     public function setUseSoftDeletes(bool $useSoftDeletes)
     {
         $this->useSoftDeletes = $useSoftDeletes;
+        return $this;
     }
 
 
@@ -563,9 +658,24 @@ class Model
      * Establece el uso de los Timestamps por fuera del modelo
      *
      * @param string $useTimestamps
+     * @return $this
      */
     public function setUseTimestamps(string $useTimestamps)
     {
         $this->useTimestamps = $useTimestamps;
+        return $this;
+    }
+
+
+
+    /**
+     * Devuelve el primer elemento encontrado.
+     * Si no encuentra un elemento, devolverá false
+     *
+     * @return $this|bool
+     */
+    public function first()
+    {
+        return $this->limit(1)->exec()[0] ?? false;
     }
 }

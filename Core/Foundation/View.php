@@ -188,4 +188,114 @@ class View extends MainHelper
         }
         include $include;
     }
+
+
+    /**
+     * Muestra el HTML construido de una paginación.
+     * Se puede establecer que tipo de construcción se desea: 
+     * 1. Todos los elementos posibles.
+     * 2. Solo botón: siguiente, anterior y links
+     * 3. Solo botón: siguiente y anterior
+     * 
+     * @param [type] $paginate
+     * @param integer $type
+     * @param integer $truncate
+     * @return string
+     */
+    public function links($paginate, int $type = 1, int $truncate = 5): string
+    {
+        if ( !is_object($paginate) && !isset($paginate->count_records) ) 
+            return '';
+
+        $links = '<nav aria-label="Page navigation">';
+        $links .=   '<ul class="pagination">';
+
+        // Primeros registros
+        if( $type < 2 ) {
+            $links .= $paginate->current !== 1 
+            ? '<li class="page-item"><a class="page-link" href="'. $paginate->first .'">Primero</a></li>'
+            : '';
+        }
+
+        // Anterior
+        $links .= sprintf(
+            '<li class="page-item %s"><a class="page-link" href="%s">Anterior</a></li>',
+            $paginate->previous ? '':' disabled',
+            $paginate->previous ? $paginate->previous:'#'
+        );
+
+        
+        // Links
+        if ( $type < 3 && count($paginate->links) < $truncate ) {
+            foreach ($paginate->links as $key => $link) {
+                // Mostrar cuando sean pocos registros
+                $links .= sprintf(
+                    "<li class='page-item %s'><a class='page-link' href='%s'>%s</a></li>",
+                    $link->current ? ' active':'',
+                    $link->link,
+                    $key+1
+                );
+            }
+        }
+        
+        // Muchos registros
+        else {
+            $find_current  = [];
+            $extends_links = 3;
+
+            // Paginación truncada
+            foreach ($paginate->links as $key => $link) {
+                if ( count($find_current) > 0 && $extends_links > 0 ) {
+                    $find_current[] = array_merge((array)$link, ['page'=>$key+1]);
+                    $extends_links--;
+                }
+
+                if ( $link->current ) {
+                    $find_current[]      = array_merge((array)$link, ['page'=>$key+1]);
+                    $find_key_current    = $key;
+                    $extends_reverse_link = 3;
+
+                    // Links reversos
+                    while ( isset($paginate->links[$find_key_current - 1]) && $extends_reverse_link > 0 ) {
+                        array_unshift(
+                            $find_current, 
+                            array_merge((array)$paginate->links[$find_key_current - 1], ['page'=>$find_key_current])
+                        );
+                        
+                        $find_key_current--;
+                        $extends_reverse_link--;
+                    }
+                }
+            }
+            // Insertar paginacion truncada
+            foreach ($find_current as $link) {
+                // Mostrar cuando sean pocos registros
+                $links .= sprintf(
+                    "<li class='page-item %s'><a class='page-link' href='%s'>%s</a></li>",
+                    $link['current'] ? ' active':'',
+                    $link['link'],
+                    $link['page']
+                );
+            }
+        }
+   
+        // Siguiente
+        $links .= sprintf(
+            '<li class="page-item %s"><a class="page-link" href="%s">Siguiente</a></li>',
+            $paginate->next ? '':' disabled',
+            $paginate->next ? $paginate->next:'#'
+        );
+
+        // Últimos registros
+        if( $type < 2 ) {
+            $links .= $paginate->current !== $paginate->count_pages
+            ? '<li class="page-item"><a class="page-link" href="'. $paginate->last .'">Último</a></li>'
+            : '';
+        }
+
+        $links .=   '</ul>';
+        $links .= '</nav>';
+
+        return $links;
+    }
 }

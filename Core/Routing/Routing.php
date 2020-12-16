@@ -31,14 +31,22 @@ class Routing
 
 
     /**
+     * Grupo de rutas
+     *
+     * @var string
+     */
+    private $group = '';
+
+
+    /**
      * Registra rutas por el verbo GET
      *
-     * @param $route
-     * @param $action
+     * @param string $route 
+     * @param string $action
      * @param bool $name
      * @return Routing
      */
-    protected function get($route, $action, $name = false)
+    protected function get(string $route, string $action, $name = false)
     {
         return $this->registerRoute('GET', $route, $action, $name);
     }
@@ -46,12 +54,12 @@ class Routing
     /**
      * Registra rutas por el verbo POST
      *
-     * @param $route
-     * @param $action
+     * @param string $route
+     * @param string $action
      * @param bool $name
      * @return Routing
      */
-    protected function post($route, $action, $name = false)
+    protected function post(string $route, string $action, $name = false)
     {
         return $this->registerRoute('POST', $route, $action, $name);
     }
@@ -59,12 +67,12 @@ class Routing
     /**
      * Registra rutas por el verbo PUT
      *
-     * @param $route
-     * @param $action
+     * @param string $route
+     * @param string $action
      * @param bool $name
      * @return Routing
      */
-    protected function put($route, $action, $name = false)
+    protected function put(string $route, string $action, $name = false)
     {
         return $this->registerRoute('PUT', $route, $action, $name);
     }
@@ -72,12 +80,12 @@ class Routing
     /**
      * Registra rutas por el verbo PATCH
      *
-     * @param $route
-     * @param $action
+     * @param string $route
+     * @param string $action
      * @param bool $name
      * @return Routing
      */
-    protected function patch($route, $action, $name = false)
+    protected function patch(string $route, string $action, $name = false)
     {
         return $this->registerRoute('PATCH', $route, $action, $name);
     }
@@ -85,12 +93,12 @@ class Routing
     /**
      * Registra rutas por el verbo DELETE
      *
-     * @param $route
-     * @param $action
+     * @param string $route
+     * @param string $action
      * @param bool $name
      * @return Routing
      */
-    protected function delete($route, $action, $name = false)
+    protected function delete(string $route, string $action, $name = false)
     {
         return $this->registerRoute('DELETE', $route, $action, $name);
     }
@@ -99,11 +107,12 @@ class Routing
     /**
      * Ruta recurso
      *
-     * @param $route
-     * @param $action
+     * @param string $route
+     * @param string $action Solo se necesita especificar el Controlador.
      * @param bool $name
+     * @return Routing
      */
-    protected function resource($route, $action, $name = false)
+    protected function resource(string $route, string $action, $name = false)
     {
         $route = trim($route, '/');
 
@@ -134,11 +143,39 @@ class Routing
 
         // Update
         $this->patch($route.'/:id', $action.'::update', $name.'.update');
+        $this->put($route.'/:id', $action.'::update', $name.'.update');
 
         //Delete
         $this->delete($route.'/:id', $action.'::destroy', $name.'.destroy');
+
+        return $this;
     }
 
+
+    /**
+     * Crea un grupo de rutas
+     *
+     * @param string $route
+     * @param function $callback
+     * @return Route
+     */
+    public function group(string $route, $callback)
+    {
+        if ( !is_callable($callback) ) return $this;
+
+        if ( $this->group !== '' ) {
+            $this->group = $this->group . $this->clearRouteToUser($route).'/';
+        }
+
+        // Limpiar un único grupo
+        else $this->group = $this->clearRouteToUser($route) . '/';
+        
+        // Executer
+        $callback($this);
+
+        // Re-establecer el grupo
+        $this->group = '';
+    }
 
     /**
      * Registra rutas
@@ -152,7 +189,7 @@ class Routing
     private function registerRoute($type, $route, $action, $name = false)
     {
         $register = [
-            'route'  => trim(trim($route, ' '), '/'),
+            'route'  => $this->group . $this->clearRouteToUser($route),
             'action' => str_replace('/', '\\', trim($action, ' '))
         ];
 
@@ -162,6 +199,17 @@ class Routing
         return $this;
     }
 
+
+    /**
+     * Limpia la ruta que pase el usuario
+     *
+     * @param string $route
+     * @return void
+     */
+    public function clearRouteToUser(string $route): string
+    {
+        return trim(trim($route, ' '), '/');
+    }
 
     /**
      * Devuelve todas las rutas registradas
