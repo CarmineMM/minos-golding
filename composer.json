@@ -10,10 +10,7 @@
         }
     ],
     "require": {
-      "ext-json": "*",
-      "ext-pdo": "*",
-      "ext-mcrypt": "*",
-      "ext-openssl": "*"
+        "vlucas/phpdotenv": "^5.2"
     },
     "autoload": {
         "psr-4": {

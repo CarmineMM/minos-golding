@@ -137,7 +137,11 @@ class Auth
      */
     public function loginIn(Request $request)
     {
+        // Por Post
         if ( $request->method !== 'POST' ) return HttpException::method_not_allowed_405();
+
+        // Si el usuario ya ha iniciado sesión, mandar al inicio
+        if ( Auth::validateAuth() ) return $this->routeHelper->redirect('/');
 
         $email = $this->column_email;
         $pass  = $this->column_password;
@@ -149,7 +153,7 @@ class Auth
 
         // Trae al usuario registrado
         $userModel = new $this->model;
-        $user = $userModel->where('email', $request->post->$email)->limit(1)->exec();
+        $user = $userModel->where('email', $request->post->$email)->first();
 
         // Validación de email
         if ( count($user) === 0 ) {
@@ -199,6 +203,9 @@ class Auth
     {
         // Valida si el usuario ya ha iniciado sesión
         if ( Auth::validateAuth() ) return $this->routeHelper->redirect('/');
+
+        // Por Post
+        if ( $request->method !== 'POST' ) return HttpException::method_not_allowed_405();
 
         $email = $this->column_email;
         $pass  = $this->column_password;

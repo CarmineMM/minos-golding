@@ -4,6 +4,7 @@
 namespace Core\Foundation;
 
 use Core\Routing\Request;
+use Core\Helper\MainHelper;
 
 /**
  * Class Kernel
@@ -62,6 +63,10 @@ class Kernel extends Config
         // Request entrante
         global $gb_request;
         $gb_request = new Request();
+
+        // Main Helper
+        global $gb_mainHelper;
+        $gb_mainHelper = new MainHelper();
 
         // Instancia la session
         if ( session_status() === PHP_SESSION_NONE ) session_start();

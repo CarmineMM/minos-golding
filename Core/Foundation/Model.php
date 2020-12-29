@@ -96,6 +96,7 @@ class Model
      */
     private $force_params = [];
 
+
     /**
      * Model constructor.
      */
@@ -121,7 +122,6 @@ class Model
             $this->table = strtolower(array_pop($table)).'s';
         }
     }
-
 
 
     /**
