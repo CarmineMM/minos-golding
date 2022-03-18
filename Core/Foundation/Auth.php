@@ -301,7 +301,7 @@ class Auth
      *
      * @return false
      */
-    public static function auth()
+    public static function user()
     {
         if ( !self::validateAuth() ) return false;
         return $_SESSION['auth'];

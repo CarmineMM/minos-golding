@@ -1,8 +1,8 @@
 <?php
 
-$this->extend('layouts/main');
+    $this->extend('layouts/main');
 
-$this->start('main');
+    $this->start('main');
 ?>
 
 <nav>

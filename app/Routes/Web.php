@@ -3,7 +3,6 @@
 namespace App\Routes;
 
 use App\Config\Namespaces;
-use Core\Foundation\Auth;
 
 /**
  * Registro de rutas en la aplicación
@@ -38,11 +37,8 @@ class Web extends \Core\Routing\Routing
     public function __construct()
     {
         // $this->get('/', 'Home::index', 'index');
-        $this->get('test', 'Home::index');
-        $this->post('test', 'Home::index');
-        $this->put('test', 'Home::index');
-        $this->get('una-ruta-loca', 'Home::index', 'index.loca');
-        // $this->auth();
+        $this->post('/subir', 'Home::archivo');
+        $this->auth();
     }
 
 

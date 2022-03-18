@@ -2,15 +2,19 @@
 
 namespace App\Controllers;
 
-use App\Models\User;
-use Core\Helper\Validator;
 use Core\Routing\Request;
 
 class HomeController
 {
     public function index(Request $request)
     {
-        $title = 'Bienvenido';
+        $title = 'Hola Mundo!';
         return view('welcome', compact('title'));
+    }
+
+    public function archivo($request)
+    {
+        showDev($request);
+        return 'Subir archivo';
     }
 }

@@ -182,7 +182,7 @@ class File
 
 
     /**
-     * Valida el tamaño maximo de un archivo
+     * Valida el tamaño máximo de un archivo
      *  1KB   = 1000
      *  30KB  = 30000
      *  500KB = 500000

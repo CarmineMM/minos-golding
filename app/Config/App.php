@@ -13,10 +13,10 @@ trait App
     |
     | Establece el entorno actual de la aplicación, solo puede tomar local/production
     | Dicho entorno puede ser usado para la configuración del sistema y dependencias
-    | Loca: marca entorno para debug. production: Ofrece una aplicación mas segura
+    | Loca: marca entorno para debug. Production: Ofrece una aplicación más segura
     |
     */
-    protected $environment = 'local';
+    protected string $environment = 'local';
 
 
     /*
@@ -33,7 +33,7 @@ trait App
 
     /*
     |--------------------------------------------------------------------------
-    | URL del Sitio Web
+    | URL del Stio Web
     |--------------------------------------------------------------------------
     |
     | Establece la URL de la aplicación
@@ -42,7 +42,7 @@ trait App
     |
     */
     protected $url = 'http://localhost';
-    protected $port = '8000';
+    protected string $port = '8000';
 
 
     /*
@@ -50,7 +50,7 @@ trait App
     | Zona Horaria
     |--------------------------------------------------------------------------
     |
-    | Define el uso Horario, para mas información consulta: https://www.php.net/manual/es/timezones.php
+    | Define el uso Horario, para más información consulta: https://www.php.net/manual/es/timezones.php
     | También se debe definir el lenguaje de la aplicación
     | Esto, para mostrar ciertas configuraciones de PHP en el idioma especificado
     |

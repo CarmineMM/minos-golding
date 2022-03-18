@@ -111,7 +111,7 @@ class Model
             ]);
         }
         catch (\PDOException $e) {
-            $gb_request->warningApp[] = "Ha ocurrido un error en establecer una connexion con la base de datos";
+            $gb_request->warningApp[] = "Ha ocurrido un error en establecer una conexión con la base de datos";
             $gb_request->warningApp[] = $e->getMessage();
             $this->connection = false;
         }
@@ -134,7 +134,7 @@ class Model
      */
     public function query($sql, $param = [])
     {
-        if ( $this->connection === false ) {
+        if ( !$this->connection ) {
             global $gb_request;
             $gb_request->warningApp[] = "No se pudo llevar a cabo la consulta";
             $gb_request->warningApp[] = "Consulta preparada: ".$this->query_sql;
@@ -230,6 +230,26 @@ class Model
         $only = implode(', ', $only);
         $this->query_sql = str_replace($this->visible, $only, $this->query_sql);
         return $this;
+    }
+
+
+   
+    /**
+     * Suma una o mas columnas
+     *
+     * @param string $column
+     * @return void
+     */
+    public function sum(...$columns)
+    {
+        $sums = '';
+        $count = 1;
+        foreach ($columns as $column) {
+            $sums .= count($columns) === $count ? "sum($column) AS $column" : "sum($column) AS $column, ";
+            $count++;
+        }
+        $this->query_sql = str_replace($this->visible, $sums, $this->query_sql);
+        return $this->exec()[0];
     }
 
 

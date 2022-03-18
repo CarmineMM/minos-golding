@@ -8,11 +8,11 @@ trait Database
 {
     /*
     |--------------------------------------------------------------------------
-    | Connexion por defecto
+    | Conexión por defecto
     |--------------------------------------------------------------------------
     |
-    | Establece una connexion a una base de datos
-    | Este parámetro es usado después para establecer una correcta connexion
+    | Establece una conexión a una base de datos
+    | Este parámetro es usado después para establecer una correcta conexión
     | Parameters admitidos, son mysql, sqlite
     |
     */
@@ -24,7 +24,7 @@ trait Database
     | Configuración de las conexiones
     |--------------------------------------------------------------------------
     |
-    | Configuraciones iniciales para la connexion con la base de datos
+    | Configuraciones iniciales para la conexión con la base de datos
     | Se pueden dejar en blanco los valores que no se necesiten
     | Si no es necesario, no se requiere modificar el puerto
     |

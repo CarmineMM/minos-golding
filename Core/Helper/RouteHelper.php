@@ -165,6 +165,9 @@ class RouteHelper
 
 
     /**
+     * Obtiene una ruta especifica,
+     * y agrega parámetros en caso de necesitas.
+     * 
      * @param $route
      * @param mixed ...$params
      * @return mixed

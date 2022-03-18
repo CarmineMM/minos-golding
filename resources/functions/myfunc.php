@@ -2,5 +2,5 @@
 
 function hello()
 {
-    echo 'Hello World';
+    return 'Hello World';
 }
